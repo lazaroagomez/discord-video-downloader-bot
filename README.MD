@@ -66,6 +66,7 @@ A Discord bot that automatically downloads and reposts videos from social media 
      ```env
      TOKEN=your_discord_bot_token
      CLIENT_ID=your_discord_client_id
+     PUBLIC_KEY=your_public_key_here
      DOWNLOAD_PATH=./downloads
      ```
 
