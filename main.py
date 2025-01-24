@@ -12,6 +12,18 @@ DOWNLOAD_PATH = os.getenv('DOWNLOAD_PATH')
 CLIENT_ID = os.getenv('CLIENT_ID')
 MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024  # 8 MB
 
+# Discord Embed Limits (Half of maximum values)
+EMBED_LIMITS = {
+    'title': 128,        # Max 256
+    'description': 2048, # Max 4096
+    'fields': 12,        # Max 25
+    'field_name': 128,   # Max 256
+    'field_value': 512,  # Max 1024
+    'footer': 1024,      # Max 2048
+    'author_name': 128,  # Max 256
+    'total': 3000,      # Max 6000
+}
+
 # Bot configuration
 intents = discord.Intents.default()
 intents.message_content = True
@@ -123,13 +135,20 @@ async def process_video(message, url, platform):
         video_path = video_info['path']
         info = video_info['info']
 
+        # Truncate title to limit
+        title = info.get('title', 'Video')[:EMBED_LIMITS['title']]
+        
+        # Truncate description
+        description = f"Shared by {message.author.mention}\n[View original]({url})"[:EMBED_LIMITS['description']]
+
         embed = discord.Embed(
-            title=info.get('title', 'Video'),
-            description=f"Shared by {message.author.mention}\n[View original]({url})",
+            title=title,
+            description=description,
             color=get_platform_color(platform)
         )
 
-        author_name = info.get('uploader', info.get('channel', 'Unknown'))
+        # Truncate author name
+        author_name = info.get('uploader', info.get('channel', 'Unknown'))[:EMBED_LIMITS['author_name']]
         embed.set_author(
             name=f"{platform.capitalize()} \u2022 {author_name}",
             icon_url=message.author.avatar.url if message.author.avatar else None
@@ -144,7 +163,26 @@ async def process_video(message, url, platform):
         ]))
 
         if info_line:
-            embed.add_field(name="", value=info_line, inline=False)
+            embed.add_field(
+                name="",
+                value=info_line[:EMBED_LIMITS['field_value']],
+                inline=False
+            )
+
+        # Check total embed length
+        total_length = (
+            len(embed.title) +
+            len(embed.description) +
+            sum(len(field.name) + len(field.value) for field in embed.fields)
+        )
+        
+        if total_length > EMBED_LIMITS['total']:
+            # If exceeded, simplify the embed
+            embed = discord.Embed(
+                title=title[:50],
+                description="Video content (truncated due to length)",
+                color=get_platform_color(platform)
+            )
 
         await processing_msg.edit(content=None, embed=embed)
 
